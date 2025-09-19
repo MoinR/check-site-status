@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Site Monitor</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    body {
+      background-color: #4a5568;
+      color: #f7fafc;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #2d3748;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background: #1a202c;
+    }
+    tr:nth-child(even) {
+      background: #4a5568;
+    }
+    .up {
+      color: #48bb78;
+      font-weight: bold;
+    }
+    .down {
+      color: #f56565;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌍 Site Monitor</h1>
+  <table id="statusTable">
+    <thead>
+      <tr>
+        <th>URL</th>
+        <th>Status</th>
+        <th>Last updated</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let ws = new WebSocket("ws://localhost:8080/ws");
+
+    ws.onmessage = function(event) {
+      let data = JSON.parse(event.data);
+      let tbody = $("#statusTable tbody");
+      tbody.empty();
+      data.forEach(site => {
+        let statusClass = site.status === "UP" ? "up" : "down";
+        tbody.append(`<tr>
+          <td>${site.url}</td>
+          <td class="${statusClass}">${site.status}</td>
+          <td>${new Date(site.time).toLocaleString()}</td>
+        </tr>`);
+      });
+    };
+  </script>
+</body>
+</html>
