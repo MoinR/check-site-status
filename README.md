@@ -14,7 +14,7 @@ It reads a list of URLs, checks their status every 3 minutes, and updates a live
 * 🔄 Monitor multiple URLs from a `sites.txt` file
 * ⏱️ Automatic health checks every 3 minutes (configurable)
 * 📡 Real-time updates via WebSockets
-* 🌑 Dark-themed HTML dashboard (`#4a5568` background)
+* 🌑 Dark-themed HTML dashboard 
 * ✅ Simple Go backend + HTML/JS frontend
 
 ---
