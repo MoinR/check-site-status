@@ -1,4 +1,7 @@
+# Example sites to monitor (lines starting with # are ignored)
 https://github.com
 https://gitlab.com
 https://jilani.tech
 https://moin-cloud.shop
+
+# Add more URLs below (one per line)
