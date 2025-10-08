@@ -2,75 +2,476 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Site Monitor</title>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      background-color: #4a5568;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: #f7fafc;
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       padding: 20px;
+      min-height: 100vh;
     }
-    h1 {
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 30px;
     }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .connection-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      background: rgba(0, 0, 0, 0.2);
+      font-size: 0.9rem;
+      margin-top: 10px;
+    }
+
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    .status-indicator.connected {
+      background: #48bb78;
+    }
+
+    .status-indicator.disconnected {
+      background: #f56565;
+      animation: none;
+    }
+
+    .status-indicator.connecting {
+      background: #ecc94b;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 15px 30px;
+      border-radius: 10px;
+      text-align: center;
+      min-width: 120px;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: bold;
+      display: block;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      opacity: 0.9;
+      margin-top: 5px;
+    }
+
+    .table-container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      background: #2d3748;
-      border-radius: 8px;
-      overflow: hidden;
     }
+
     th, td {
-      padding: 12px;
+      padding: 16px;
       text-align: left;
     }
+
     th {
-      background: #1a202c;
+      background: rgba(0, 0, 0, 0.3);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      letter-spacing: 0.5px;
     }
-    tr:nth-child(even) {
-      background: #4a5568;
+
+    tr {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      transition: background-color 0.2s;
     }
-    .up {
-      color: #48bb78;
+
+    tr:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    tr:last-child {
+      border-bottom: none;
+    }
+
+    .url-cell {
+      font-family: 'Courier New', monospace;
+      word-break: break-all;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 6px;
       font-weight: bold;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-    .down {
-      color: #f56565;
-      font-weight: bold;
+
+    .status-up {
+      background: #48bb78;
+      color: white;
+    }
+
+    .status-down {
+      background: #f56565;
+      color: white;
+    }
+
+    .status-warning {
+      background: #ecc94b;
+      color: #2d3748;
+    }
+
+    .time-cell {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      font-size: 1.2rem;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .no-data {
+      text-align: center;
+      padding: 60px 20px;
+      font-size: 1.2rem;
+      opacity: 0.8;
+    }
+
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      .stats {
+        gap: 10px;
+      }
+
+      .stat-card {
+        min-width: 100px;
+        padding: 10px 20px;
+      }
+
+      .stat-number {
+        font-size: 1.5rem;
+      }
+
+      th, td {
+        padding: 12px 8px;
+        font-size: 0.9rem;
+      }
+
+      .url-cell {
+        font-size: 0.85rem;
+      }
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      opacity: 0.8;
+      font-size: 0.9rem;
+    }
+
+    footer a {
+      color: white;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    footer a:hover {
+      border-bottom-color: white;
     }
   </style>
 </head>
 <body>
-  <h1>🌍 Site Monitor</h1>
-  <table id="statusTable">
-    <thead>
-      <tr>
-        <th>URL</th>
-        <th>Status</th>
-        <th>Last updated</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="container">
+    <header>
+      <h1>🌍 Site Monitor</h1>
+      <div class="connection-status">
+        <span class="status-indicator connecting" id="statusIndicator"></span>
+        <span id="connectionText">Connecting...</span>
+      </div>
+    </header>
+
+    <div class="stats" id="stats" style="display: none;">
+      <div class="stat-card">
+        <span class="stat-number" id="totalSites">0</span>
+        <span class="stat-label">Total Sites</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number" id="upSites" style="color: #48bb78;">0</span>
+        <span class="stat-label">Online</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number" id="downSites" style="color: #f56565;">0</span>
+        <span class="stat-label">Offline</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number" id="warningSites" style="color: #ecc94b;">0</span>
+        <span class="stat-label">Warning</span>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <div>Waiting for data...</div>
+      </div>
+      <table id="statusTable" style="display: none;">
+        <thead>
+          <tr>
+            <th>URL</th>
+            <th>Status</th>
+            <th>Last Updated</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="no-data" id="noData" style="display: none;">
+        <div>📭 No sites configured</div>
+        <div style="font-size: 0.9rem; margin-top: 10px; opacity: 0.7;">
+          Add URLs to sites.txt to start monitoring
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>Auto-refreshing every 10 seconds • Built with Go & WebSockets</p>
+    </footer>
+  </div>
 
   <script>
-    let ws = new WebSocket("ws://localhost:8080/ws");
+    let ws = null;
+    let reconnectInterval = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    const reconnectDelay = 3000;
 
-    ws.onmessage = function(event) {
-      let data = JSON.parse(event.data);
-      let tbody = $("#statusTable tbody");
-      tbody.empty();
+    function getWebSocketURL() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host || 'localhost:8080';
+      return `${protocol}//${host}/ws`;
+    }
+
+    function updateConnectionStatus(status) {
+      const indicator = document.getElementById('statusIndicator');
+      const text = document.getElementById('connectionText');
+      
+      indicator.className = `status-indicator ${status}`;
+      
+      switch(status) {
+        case 'connected':
+          text.textContent = 'Connected';
+          break;
+        case 'disconnected':
+          text.textContent = 'Disconnected';
+          break;
+        case 'connecting':
+          text.textContent = `Connecting${reconnectAttempts > 0 ? ` (attempt ${reconnectAttempts})` : ''}...`;
+          break;
+      }
+    }
+
+    function updateStats(data) {
+      const total = data.length;
+      let up = 0, down = 0, warning = 0;
+
       data.forEach(site => {
-        let statusClass = site.status === "UP" ? "up" : "down";
-        tbody.append(`<tr>
-          <td>${site.url}</td>
-          <td class="${statusClass}">${site.status}</td>
-          <td>${new Date(site.time).toLocaleString()}</td>
-        </tr>`);
+        if (site.status === 'UP') {
+          up++;
+        } else if (site.status === 'DOWN') {
+          down++;
+        } else {
+          warning++;
+        }
       });
-    };
+
+      document.getElementById('totalSites').textContent = total;
+      document.getElementById('upSites').textContent = up;
+      document.getElementById('downSites').textContent = down;
+      document.getElementById('warningSites').textContent = warning;
+      document.getElementById('stats').style.display = 'flex';
+    }
+
+    function getStatusClass(status) {
+      if (status === 'UP') return 'status-up';
+      if (status === 'DOWN') return 'status-down';
+      return 'status-warning';
+    }
+
+    function formatTime(timeStr) {
+      try {
+        const date = new Date(timeStr);
+        return date.toLocaleString();
+      } catch (e) {
+        return timeStr;
+      }
+    }
+
+    function updateTable(data) {
+      const tbody = document.querySelector('#statusTable tbody');
+      const loading = document.getElementById('loading');
+      const table = document.getElementById('statusTable');
+      const noData = document.getElementById('noData');
+
+      loading.style.display = 'none';
+
+      if (data.length === 0) {
+        table.style.display = 'none';
+        noData.style.display = 'block';
+        return;
+      }
+
+      noData.style.display = 'none';
+      table.style.display = 'table';
+
+      tbody.innerHTML = '';
+      data.forEach(site => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="url-cell">${escapeHtml(site.url)}</td>
+          <td><span class="status-badge ${getStatusClass(site.status)}">${escapeHtml(site.status)}</span></td>
+          <td class="time-cell">${formatTime(site.time)}</td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      updateStats(data);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function connect() {
+      if (reconnectInterval) {
+        clearTimeout(reconnectInterval);
+        reconnectInterval = null;
+      }
+
+      updateConnectionStatus('connecting');
+
+      try {
+        ws = new WebSocket(getWebSocketURL());
+
+        ws.onopen = function() {
+          console.log('WebSocket connected');
+          updateConnectionStatus('connected');
+          reconnectAttempts = 0;
+        };
+
+        ws.onmessage = function(event) {
+          try {
+            const data = JSON.parse(event.data);
+            updateTable(data);
+          } catch (e) {
+            console.error('Error parsing message:', e);
+          }
+        };
+
+        ws.onerror = function(error) {
+          console.error('WebSocket error:', error);
+        };
+
+        ws.onclose = function() {
+          console.log('WebSocket disconnected');
+          updateConnectionStatus('disconnected');
+          ws = null;
+
+          // Attempt to reconnect
+          if (reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts++;
+            reconnectInterval = setTimeout(connect, reconnectDelay);
+          } else {
+            document.getElementById('connectionText').textContent = 'Connection failed. Refresh page to retry.';
+          }
+        };
+      } catch (e) {
+        console.error('Error creating WebSocket:', e);
+        updateConnectionStatus('disconnected');
+      }
+    }
+
+    // Start connection
+    connect();
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+      if (ws) {
+        ws.close();
+      }
+    });
   </script>
 </body>
 </html>

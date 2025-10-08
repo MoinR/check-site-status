@@ -4,8 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -21,7 +24,10 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-var clients = make(map[*websocket.Conn]bool)
+var (
+	clients      = make(map[*websocket.Conn]bool)
+	clientsMutex sync.RWMutex
+)
 
 func checkURL(url string) string {
 	client := http.Client{Timeout: 5 * time.Second}
@@ -47,9 +53,18 @@ func readURLs(filename string) ([]string, error) {
 	var urls []string
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		urls = append(urls, scanner.Text())
+		line := strings.TrimSpace(scanner.Text())
+		// Skip empty lines and comments
+		if line != "" && !strings.HasPrefix(line, "#") {
+			urls = append(urls, line)
+		}
 	}
 	return urls, scanner.Err()
+}
+
+// marshalJSON is a helper function for testing
+func marshalJSON(v interface{}) ([]byte, error) {
+	return json.Marshal(v)
 }
 
 func broadcastStatus(urls []string) {
@@ -63,11 +78,30 @@ func broadcastStatus(urls []string) {
 			})
 		}
 
-		data, _ := json.Marshal(results)
-		fmt.Println(string(data))
-		for client := range clients {
-			client.WriteMessage(websocket.TextMessage, data)
+		data, err := json.Marshal(results)
+		if err != nil {
+			log.Printf("Error marshaling JSON: %v", err)
+			time.Sleep(10 * time.Second)
+			continue
 		}
+
+		log.Printf("Broadcasting status update to %d clients", len(clients))
+		
+		clientsMutex.RLock()
+		for client := range clients {
+			err := client.WriteMessage(websocket.TextMessage, data)
+			if err != nil {
+				log.Printf("Error writing to client: %v", err)
+				// Remove failed client
+				clientsMutex.RUnlock()
+				clientsMutex.Lock()
+				delete(clients, client)
+				client.Close()
+				clientsMutex.Unlock()
+				clientsMutex.RLock()
+			}
+		}
+		clientsMutex.RUnlock()
 
 		time.Sleep(10 * time.Second)
 	}
@@ -76,25 +110,53 @@ func broadcastStatus(urls []string) {
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		fmt.Println("Upgrade error:", err)
+		log.Printf("Upgrade error: %v", err)
 		return
 	}
-	defer ws.Close()
+	defer func() {
+		clientsMutex.Lock()
+		delete(clients, ws)
+		clientsMutex.Unlock()
+		ws.Close()
+		log.Println("Client disconnected")
+	}()
 
+	clientsMutex.Lock()
 	clients[ws] = true
-	select {}
+	clientsMutex.Unlock()
+	log.Printf("New client connected. Total clients: %d", len(clients))
+
+	// Keep connection alive and listen for close
+	for {
+		if _, _, err := ws.ReadMessage(); err != nil {
+			break
+		}
+	}
 }
 
 func main() {
 	urls, err := readURLs("sites.txt")
 	if err != nil {
-		panic(err)
+		log.Fatalf("Error reading URLs: %v", err)
 	}
 
+	if len(urls) == 0 {
+		log.Fatal("No URLs found in sites.txt")
+	}
+
+	log.Printf("Monitoring %d URLs", len(urls))
+
 	http.HandleFunc("/ws", handleConnections)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "index.html")
+	})
 
 	go broadcastStatus(urls)
 
-	fmt.Println("🚀 Server started at :8080")
-	http.ListenAndServe(":8080", nil)
+	log.Println("🚀 Server started at :8080")
+	log.Println("📊 Open http://localhost:8080 in your browser")
+	
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
